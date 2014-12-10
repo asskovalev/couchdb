@@ -1,0 +1,12 @@
+{application, couch_index_merger, [
+    {description, "Index merger"},
+    {vsn, "0.0.1"},
+    {modules, [
+        couch_index_merger,
+        couch_view_merger,
+        couch_view_merger_queue,
+        couch_httpd_view_merger
+    ]},
+    {registered, []},
+    {applications, [kernel, stdlib]}
+]}.
