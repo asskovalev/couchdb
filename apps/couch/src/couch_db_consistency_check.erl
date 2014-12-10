@@ -68,9 +68,10 @@ check_db_file(Db) ->
                     fatal_error("Problem reading doc DB ~s id ~s: ~p",
                             [Filename, DocInfo#doc_info.id, {Type2,Error2}])
                 end,
+                Body2 = 
                 if (DocInfo#doc_info.content_meta band
                         ?CONTENT_META_SNAPPY_COMPRESSED) > 0 ->
-                    Body2 = try
+                    try
                             couch_compress:decompress(Body)
                     catch
                     Type3:Error3 ->
@@ -78,7 +79,7 @@ check_db_file(Db) ->
                                 [Filename, DocInfo#doc_info.id, {Type3,Error3}])
                     end;
                 true ->
-                    Body2 = Body
+                    Body
                 end,
                 if (DocInfo#doc_info.content_meta band
                         (bnot ?CONTENT_META_JSON)) == ?CONTENT_META_JSON ->

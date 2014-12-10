@@ -79,13 +79,14 @@ sorted_file_fold(Fd, FileName, BinToKvFun, AdviseOffset, BytesRead, Acc) ->
         case file:read(Fd, Len) of
         {ok, KvBin} ->
             BytesRead2 = BytesRead + 4 + Len,
-            case (BytesRead2 - AdviseOffset) >= ?FLUSH_PAGE_CACHE_AFTER of
-            true ->
-                AdviseOffset2 = BytesRead2,
-                (catch file:advise(Fd, AdviseOffset, BytesRead2, dont_need));
-            false ->
-                AdviseOffset2 = AdviseOffset
-            end,
+            AdviseOffset2 = 
+                case (BytesRead2 - AdviseOffset) >= ?FLUSH_PAGE_CACHE_AFTER of
+                true ->
+                    (catch file:advise(Fd, AdviseOffset, BytesRead2, dont_need)),
+                    BytesRead2;
+                false ->
+                    AdviseOffset
+                end,
             Kv = BinToKvFun(KvBin),
             {ok, Acc2} = fold_copy(Kv, Len, Acc),
             sorted_file_fold(Fd, FileName, BinToKvFun, AdviseOffset2, BytesRead2, Acc2);
@@ -168,11 +169,12 @@ before_leaf_write(#acc{before_kv_write = Fun, user_acc = UserAcc0} = Acc, KVs) -
 
 
 write_leaf(#acc{fd = Fd, btree = Bt}, NodeList, Red) ->
+    {ok, Pos, Size} = 
     if Bt#btree.binary_mode ->
         Bin = couch_btree:encode_node(kv_node, NodeList),
-        {ok, Pos, Size} = couch_file:append_binary_crc32(Fd, Bin);
+        couch_file:append_binary_crc32(Fd, Bin);
     true ->
-        {ok, Pos, Size} = couch_file:append_term(Fd, {kv_node, NodeList})
+        couch_file:append_term(Fd, {kv_node, NodeList})
     end,
     {ok, {Pos, Red, Size}}.
 
@@ -192,11 +194,12 @@ write_kp_node(#acc{fd = Fd, btree = Bt}, NodeList) ->
     _ ->
         couch_btree:final_reduce(Bt, {[], ChildrenReds})
     end,
+    {ok, Pos, Size} = 
     if Bt#btree.binary_mode ->
         Bin = couch_btree:encode_node(kp_node, NodeList),
-        {ok, Pos, Size} = couch_file:append_binary_crc32(Fd, Bin);
+        couch_file:append_binary_crc32(Fd, Bin);
     true ->
-        {ok, Pos, Size} = couch_file:append_term(Fd, {kp_node, NodeList})
+        couch_file:append_term(Fd, {kp_node, NodeList})
     end,
     {ok, {Pos, Red, ChildrenSize + Size}}.
 
@@ -321,11 +324,11 @@ flush_leaf(KVs, #acc{btree = Btree} = Acc) ->
         true -> <<>>
         end;
     _ ->
-        case Btree#btree.assemble_kv of
+        Items = case Btree#btree.assemble_kv of
         identity ->
-            Items = NewKVs;
+            NewKVs;
         _ ->
-            Items = [assemble(Acc2, Kv) || Kv <- NewKVs]
+            [assemble(Acc2, Kv) || Kv <- NewKVs]
         end,
         couch_btree:final_reduce(Btree, {Items, []})
     end,

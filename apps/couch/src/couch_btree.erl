@@ -388,26 +388,29 @@ chunkify([InElement | RestInList], ChunkThreshold, OutList, OutListSize, OutputC
     end.
 
 modify_node(Bt, RootPointerInfo, Actions, QueryOutput, Acc, PurgeFun, PurgeFunAcc, KeepPurging) ->
+    {NodeType, NodeList} = 
     case RootPointerInfo of
     nil ->
-        NodeType = kv_node,
-        NodeList = [];
+        {kv_node, []};
     _Tuple ->
         Pointer = element(1, RootPointerInfo),
-        {NodeType, NodeList} = get_node(Bt, Pointer)
+        get_node(Bt, Pointer)
     end,
 
+    {NodeTuple, NewNodeList, QueryOutput2, Acc2, PurgeFunAcc2, KeepPurging2, Bt2} = 
     case NodeType of
     kp_node ->
-        NodeTuple = list_to_tuple(NodeList),
-        {ok, NewNodeList, QueryOutput2, Acc2, PurgeFunAcc2, KeepPurging2, Bt2} =
-            modify_kpnode(Bt, NodeTuple, 1, Actions, [], QueryOutput, Acc, PurgeFun, PurgeFunAcc, KeepPurging);
+        NodeTuple_ = list_to_tuple(NodeList),
+        {ok, NewNodeList_, QueryOutput2_, Acc2_, PurgeFunAcc2_, KeepPurging2_, Bt2_} =
+            modify_kpnode(Bt, NodeTuple_, 1, Actions, [], QueryOutput, Acc, PurgeFun, PurgeFunAcc, KeepPurging),
+        {NodeTuple_, NewNodeList_, QueryOutput2_, Acc2_, PurgeFunAcc2_, KeepPurging2_, Bt2_};
     kv_node ->
-        {ok, NewNodeList1, PurgeFunAcc2, KeepPurging2, Bt1} =
+        {ok, NewNodeList1, PurgeFunAcc2_, KeepPurging2_, Bt1} =
             maybe_purge(kv_node, Bt, NodeList, PurgeFun, PurgeFunAcc, KeepPurging),
-        NodeTuple = list_to_tuple(NewNodeList1),
-        {ok, NewNodeList, QueryOutput2, Acc2, Bt2} =
-            modify_kvnode(Bt1, NodeTuple, 1, Actions, [], QueryOutput, Acc)
+        NodeTuple_ = list_to_tuple(NewNodeList1),
+        {ok, NewNodeList_, QueryOutput2_, Acc2_, Bt2_} =
+            modify_kvnode(Bt1, NodeTuple_, 1, Actions, [], QueryOutput, Acc),
+        {NodeTuple_, NewNodeList_, QueryOutput2_, Acc2_, PurgeFunAcc2_, KeepPurging2_, Bt2_}
     end,
     case NewNodeList of
     [] ->  % no nodes remain
@@ -457,15 +460,16 @@ decode_node(<<SizeK:?KEY_BITS, SizeV:?VALUE_BITS,
               K:SizeK/binary, V:SizeV/binary,
               Rest/binary>>,
             Type, Acc) ->
+    Val = 
     case Type of
     kv_node ->
-        Val = binary:copy(V);
+        binary:copy(V);
     kp_node ->
         <<Pointer:?POINTER_BITS,
           SubtreeSize:?TREE_SIZE_BITS,
           RedSize:?RED_BITS,
           Reduction:RedSize/binary>> = V,
-        Val = {Pointer, binary:copy(Reduction), SubtreeSize}
+        {Pointer, binary:copy(Reduction), SubtreeSize}
     end,
     decode_node(Rest, Type, [{binary:copy(K), Val} | Acc]).
 
@@ -511,12 +515,12 @@ write_node(#btree{fd = Fd, binary_mode = BinMode} = Bt, NodeType, NodeList) ->
     % now write out each chunk and return the KeyPointer pairs for those nodes
     ResultList = [
         begin
+            {ok, Pointer, Size} = 
             if BinMode ->
                 Bin = encode_node(NodeType, ANodeList),
-                {ok, Pointer, Size} = couch_file:append_binary_crc32(Fd, Bin);
+                couch_file:append_binary_crc32(Fd, Bin);
             true ->
-                {ok, Pointer, Size} = couch_file:append_term(Fd,
-                        {NodeType, ANodeList})
+                couch_file:append_term(Fd, {NodeType, ANodeList})
             end,
             {LastKey, _} = lists:last(ANodeList),
             SubTreeSize = reduce_tree_size(NodeType, Size, ANodeList),
@@ -822,14 +826,12 @@ reduce_stream_kp_node2(Bt, Dir, NodeList, KeyStart, InEndRangeFun,
     end,
     {NotFilter, NeedFilter} = filter_branch(FilterFun, GroupedNodes),
     GroupedReds1 = [element(2, Node) || {_, Node} <- NotFilter],
+    {ok, Acc2, GroupedReds2, GroupedKVsAcc2, GroupedKey2} = 
     case NeedFilter of
     [] ->
-        Acc2 = Acc,
-        GroupedReds2 = GroupedReds1 ++ GroupedRedsAcc,
-        GroupedKVsAcc2 = GroupedKVsAcc,
-        GroupedKey2 = GroupedKey;
+        {ok, Acc, GroupedReds1 ++ GroupedRedsAcc, GroupedKVsAcc, GroupedKey};
     _ ->
-        {ok, Acc2, GroupedReds2, GroupedKVsAcc2, GroupedKey2} = lists:foldl(
+        lists:foldl(
             fun({_, Node}, {ok, A, RedsAcc, KVsAcc, K}) ->
                 reduce_stream_node(
                     Bt, Dir, Node, KeyStart, InEndRangeFun, K,
@@ -843,7 +845,7 @@ reduce_stream_kp_node2(Bt, Dir, NodeList, KeyStart, InEndRangeFun,
         {ok, Acc3, GroupedRedsAcc3, GroupedKVsAcc3, GroupedKey3} =
             reduce_stream_node(Bt, Dir, NodeInfo, KeyStart, InEndRangeFun, GroupedKey2,
                 GroupedKVsAcc2, GroupedReds2, KeyGroupFun, Fun, FilterFun, Acc2),
-        reduce_stream_kp_node2(Bt, Dir, RestNodes, KeyStart, InEndRangeFun, GroupedKey3,
+            reduce_stream_kp_node2(Bt, Dir, RestNodes, KeyStart, InEndRangeFun, GroupedKey3,
                 GroupedKVsAcc3, GroupedRedsAcc3, KeyGroupFun, Fun, FilterFun, Acc3);
     [] ->
         {ok, Acc2, GroupedReds2, GroupedKVsAcc, GroupedKey}
@@ -955,11 +957,12 @@ stream_kv_node(Bt, Reds, KVs, StartKey, InRange, Dir, Fun, Acc) ->
         fun({Key, _}) -> less(Bt, StartKey, Key) end
     end,
     {LTKVs, GTEKVs} = lists:splitwith(DropFun, KVs),
+    AssembleLTKVs = 
     case Bt#btree.assemble_kv of
     identity ->
-        AssembleLTKVs = LTKVs;
+        LTKVs;
     _ ->
-        AssembleLTKVs = [assemble(Bt, KV) || KV <- LTKVs]
+        [assemble(Bt, KV) || KV <- LTKVs]
     end,
     stream_kv_node2(Bt, Reds, AssembleLTKVs, GTEKVs, InRange, Dir, Fun, Acc).
 
@@ -989,13 +992,13 @@ guided_purge(#btree{root = Root} = Bt, GuideFun, GuideAcc0) ->
 
 guided_purge(Bt, NodeState, GuideFun, GuideAcc) ->
     % inspired by modify_node/5
+    {NodeType, NodeList} = 
     case NodeState of
     nil ->
-        NodeType = kv_node,
-        NodeList = [];
+        {kv_node, []};
     _Tuple ->
         Pointer = element(1, NodeState),
-        {NodeType, NodeList} = get_node(Bt, Pointer)
+        get_node(Bt, Pointer)
     end,
     {ok, NewNodeList, GuideAcc2, Bt2, Go} =
     case NodeType of

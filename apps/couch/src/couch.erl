@@ -54,5 +54,5 @@ store(Db, Id, Obj) when is_list(Obj) ->
 lookup(Db, Id) ->
     couch_db_frontend:open_doc(Db, Id, [ejson_body]).
 
-update(Db, Id, Obj) ->
+update(_Db, _Id, _Obj) ->
     error.

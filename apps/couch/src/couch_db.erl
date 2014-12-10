@@ -475,13 +475,13 @@ update_docs(Db, Docs, Options0) ->
                 {[Doc | DocsAcc], NonRepDocsAcc}
             end
         end, {[], []}, Docs),
+    {Docs2, NonRepDocs} = 
     case lists:member(sort_docs, Options0) of
     true ->
-        Docs2 = lists:keysort(#doc.id, Docs1),
-        NonRepDocs = lists:keysort(#doc.id, NonRepDocs1);
+        {lists:keysort(#doc.id, Docs1),
+         lists:keysort(#doc.id, NonRepDocs1)};
     false ->
-        Docs2 = Docs1,
-        NonRepDocs = NonRepDocs1
+        {Docs1, NonRepDocs1}
     end,
     Options = set_commit_option(Options0),
     FullCommit = lists:member(full_commit, Options),

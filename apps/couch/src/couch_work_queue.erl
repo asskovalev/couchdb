@@ -163,11 +163,13 @@ dequeue_items(0, Size, Queue, Blocked, DequeuedAcc) ->
 
 dequeue_items(NumItems, Size, Queue, Blocked, DequeuedAcc) ->
     {{value, {Item, ItemSize}}, Queue2} = queue:out(Queue),
+    Blocked2 = 
     case Blocked of
-    [] ->
-        Blocked2 = Blocked;
-    [From | Blocked2] ->
-        gen_server:reply(From, ok)
+        [] ->
+            Blocked;
+        [From | Blocked_] ->
+            gen_server:reply(From, ok),
+            Blocked_
     end,
     dequeue_items(
         NumItems - 1, Size - ItemSize, Queue2, Blocked2, [Item | DequeuedAcc]).

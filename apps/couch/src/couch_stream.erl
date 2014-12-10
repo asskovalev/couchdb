@@ -236,23 +236,22 @@ handle_call({write, Bin}, _From, Stream) ->
     if BinSize + BufferLen > Max ->
         WriteBin = lists:reverse(Buffer, [Bin]),
         IdenMd5_2 = couch_util:md5_update(IdenMd5, WriteBin),
+        {WrittenLen2, Md5_2, Written2} = 
         case EncodingFun(WriteBin) of
         [] ->
             % case where the encoder did some internal buffering
             % (zlib does it for example)
-            WrittenLen2 = WrittenLen,
-            Md5_2 = Md5,
-            Written2 = Written;
+            {WrittenLen, Md5, Written};
         WriteBin2 ->
             {ok, Pos, _} = couch_file:append_binary(Fd, WriteBin2),
-            WrittenLen2 = WrittenLen + iolist_size(WriteBin2),
-            Md5_2 = case Encoding of
+            WrittenLen_ = WrittenLen + iolist_size(WriteBin2),
+            Md5_ = case Encoding of
             identity ->
                 IdenMd5_2;
             gzip ->
                 couch_util:md5_update(Md5, WriteBin2)
             end,
-            Written2 = [{Pos, iolist_size(WriteBin2)}|Written]
+            {WrittenLen_, Md5_, [{Pos, iolist_size(WriteBin2)}|Written]}
         end,
 
         {reply, ok, Stream#stream{

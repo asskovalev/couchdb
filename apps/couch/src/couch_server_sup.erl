@@ -51,11 +51,12 @@ start_server(IniFiles) ->
     _ -> ok
     end,
 
+    ConfigPid = 
     case couch_config:start_link(IniFiles) of
-    {ok, ConfigPid} ->
-        ok;
-    {error, {already_started, ConfigPid}} ->
-        ok
+    {ok, ConfigPid_} ->
+        ConfigPid_;
+    {error, {already_started, ConfigPid_}} ->
+        ConfigPid_
     end,
 
     LogLevel = couch_config:get("log", "level", "info"),

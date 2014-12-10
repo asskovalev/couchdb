@@ -28,26 +28,28 @@
 
 init({MainPid, DbName, Filepath, Fd, Options}) ->
     process_flag(trap_exit, true),
+    Header = 
     case lists:member(create, Options) of
     true ->
         % create a new header and writes it to the file
-        Header =  #db_header{},
-        {ok, _Pos} = couch_file:write_header_bin(Fd, db_header_to_header_bin(Header)),
+        Header_ =  #db_header{},
+        {ok, _Pos} = couch_file:write_header_bin(Fd, db_header_to_header_bin(Header_)),
         % delete any old compaction files that might be hanging around
         RootDir = couch_config:get("couchdb", "database_dir", "."),
-        couch_file:delete(RootDir, Filepath ++ ".compact");
+        couch_file:delete(RootDir, Filepath ++ ".compact"),
+        Header_;
     false ->
         case couch_file:read_header_bin(Fd) of
         {ok, BinHeader, _Pos} ->
-            Header = header_bin_to_db_header(BinHeader),
-            ok;
+            header_bin_to_db_header(BinHeader);
         no_valid_header ->
             % create a new header and writes it to the file
-            Header =  #db_header{},
+            Header_ =  #db_header{},
             {ok, _Pos} = couch_file:write_header_bin(Fd,
-                    db_header_to_header_bin(Header)),
+                    db_header_to_header_bin(Header_)),
             % delete any old compaction files that might be hanging around
-            file2:delete(Filepath ++ ".compact")
+            file2:delete(Filepath ++ ".compact"),
+            Header_
         end
     end,
 
@@ -323,11 +325,13 @@ handle_info({update_docs, Client, Docs, NonRepDocs, FullCommit}, Db) ->
                     ?LOG_INFO("Database `~s`, design document `~s` updated "
                           "(new revision: ~s, deleted: ~s)",
                           [Db#db.name, Id, couch_doc:rev_to_str(NewRev), Deleted]),
+                    DDocBody = 
                     case DUI#doc_update_info.deleted of
                     true ->
-                        DDocBody = {[]};
+                        {[]};
                     false ->
-                        {ok, DDocBody} = couch_file:pread_iolist(Db2#db.fd, DUI#doc_update_info.body_ptr)
+                        {ok, DDocBody_} = couch_file:pread_iolist(Db2#db.fd, DUI#doc_update_info.body_ptr),
+                        DDocBody_
                     end,
                     DDoc = #doc{
                         id = Id,
@@ -544,12 +548,13 @@ populate_db_from_header(Db, NewHeader) ->
             {binary_mode, true}]),
     {ok, LocalDocsBtree} = couch_btree:open(Header#db_header.local_docs_btree_state,
         Db#db.fd, [{binary_mode, true}]),
+    {Security, SecurityPtr} = 
     case Header#db_header.security_ptr of
     nil ->
-        Security = [],
-        SecurityPtr = nil;
-    SecurityPtr ->
-        {ok, Security} = couch_file:pread_term(Db#db.fd, SecurityPtr)
+        {[], nil};
+    SecurityPtr_ ->
+        {ok, Security_} = couch_file:pread_term(Db#db.fd, SecurityPtr_),
+        {Security_, SecurityPtr_}
     end,
     Db#db{
         header=Header,
@@ -767,25 +772,27 @@ copy_compact(Db, NewDb0, Retry) ->
         couch_task_status:set_update_frequency(500)
     end,
 
+    NewDb3 = 
     case Retry of
     false ->
-        NewDb3 = initial_copy_compact(Db, NewDb);
+        initial_copy_compact(Db, NewDb);
     true ->
         {ok, _, {NewDb2, Uncopied, _, _}} =
             couch_btree:foldl(Db#db.docinfo_by_seq_btree, EnumBySeqFun,
                 {NewDb, [], 0, 0},
                 [{start_key, NewDb#db.update_seq + 1}]),
-        NewDb3 = copy_docs(Db, NewDb2, lists:reverse(Uncopied), Retry)
+        copy_docs(Db, NewDb2, lists:reverse(Uncopied), Retry)
     end,
 
     TotalChanges = couch_task_status:get(changes_done),
 
     % copy misc header values
+    NewDb4 = 
     if NewDb3#db.security /= Db#db.security ->
         {ok, Ptr, _} = couch_file:append_term(NewDb3#db.fd, Db#db.security),
-        NewDb4 = NewDb3#db{security=Db#db.security, security_ptr=Ptr};
+        NewDb3#db{security=Db#db.security, security_ptr=Ptr};
     true ->
-        NewDb4 = NewDb3
+        NewDb3
     end,
     ok = couch_file:flush(NewDb4#db.fd),
     commit_data(NewDb4#db{update_seq=Db#db.update_seq}).

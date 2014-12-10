@@ -213,11 +213,12 @@ group_reductions_results(List) ->
 builtin_reduce(_Re, [], _KVs, Acc) ->
     {ok, lists:reverse(Acc)};
 builtin_reduce(Re, [<<"_sum", _/binary>> | BuiltinReds], KVs0, Acc) ->
+    KVs = 
     case Re of
     reduce ->
-        KVs = [{K, ?JSON_DECODE(V)} || {K, V} <- KVs0];
+        [{K, ?JSON_DECODE(V)} || {K, V} <- KVs0];
     rereduce ->
-        KVs = KVs0
+        KVs0
     end,
     Sum = builtin_sum_rows(KVs),
     builtin_reduce(Re, BuiltinReds, KVs, [Sum | Acc]);
@@ -228,11 +229,12 @@ builtin_reduce(rereduce, [<<"_count", _/binary>> | BuiltinReds], KVs, Acc) ->
     Count = builtin_sum_rows(KVs),
     builtin_reduce(rereduce, BuiltinReds, KVs, [Count | Acc]);
 builtin_reduce(Re, [<<"_stats", _/binary>> | BuiltinReds], KVs0, Acc) ->
+    KVs = 
     case Re of
     reduce ->
-        KVs = [{K, ?JSON_DECODE(V)} || {K, V} <- KVs0];
+        [{K, ?JSON_DECODE(V)} || {K, V} <- KVs0];
     rereduce ->
-        KVs = KVs0
+        KVs0
     end,
     Stats = builtin_stats(Re, KVs),
     builtin_reduce(Re, BuiltinReds, KVs, [Stats | Acc]);

@@ -235,7 +235,7 @@ cookie_auth_cookie(Req, User, Secret, TimeStamp) ->
         [{path, "/"}, cookie_scheme(Req)]).
 
 hash_password(Password, Salt) ->
-    ?l2b(couch_util:to_hex(crypto:sha(<<Password/binary, Salt/binary>>))).
+    ?l2b(couch_util:to_hex(crypto:hash(sha, <<Password/binary, Salt/binary>>))).
 
 ensure_cookie_auth_secret() ->
     case couch_config:get("couch_httpd_auth", "secret", nil) of

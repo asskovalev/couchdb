@@ -307,12 +307,14 @@ init([]) ->
             DDocUpdateNotifyFun = fun({{DataDbName, DDocDbName}, {DDocId0, Sig}}) when DDocId0 == DDocId ->
                 case ets:lookup(group_servers_by_sig, {DataDbName, DDocDbName, Sig}) of
                 [{_, GroupPid}] ->
+                    NewSig = 
                     case DDoc#doc.deleted of
                     true ->
-                        NewSig = <<>>;
+                        <<>>;
                     false ->
                         DDoc2 = couch_doc:with_ejson_body(DDoc),
-                        #group{sig = NewSig} = couch_view_group:design_doc_to_view_group(DDoc2)
+                        #group{sig = NewSig_} = couch_view_group:design_doc_to_view_group(DDoc2),
+                        NewSig_
                     end,
                     (catch gen_server:cast(GroupPid, {ddoc_updated, NewSig}));
                 [] ->

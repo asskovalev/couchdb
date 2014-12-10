@@ -663,11 +663,13 @@ init_group(Db, Fd, #group{views=Views0} = Group, IndexHeader) ->
     DDocId = Group#group.name,
     Views2 = lists:zipwith(
         fun({BTState, USeq, PSeq}, #view{options=Options} = View) ->
+            ViewName = 
             case View#view.reduce_funs of
-            [{ViewName, _} | _] ->
-                ok;
+            [{ViewName_, _} | _] ->
+                ViewName_;
             [] ->
-                [ViewName | _] = View#view.map_names
+                [ViewName_ | _] = View#view.map_names,
+                ViewName_
             end,
             ReduceFun =
                 fun(reduce, KVs) ->
@@ -700,12 +702,12 @@ init_group(Db, Fd, #group{views=Views0} = Group, IndexHeader) ->
                         throw(Error)
                     end
                 end,
-            
+            Less = 
             case couch_util:get_value(<<"collation">>, Options, <<"default">>) of
             <<"default">> ->
-                Less = fun couch_view:less_json_ids/2;
+                fun couch_view:less_json_ids/2;
             <<"raw">> ->
-                Less = fun(A,B) -> A < B end
+                fun(A,B) -> A < B end
             end,
             {ok, Btree} = couch_btree:open(BTState, Fd,
                     [{less, Less}, {reduce, ReduceFun}]

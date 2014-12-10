@@ -175,11 +175,11 @@ view_name(#group{views = Views}, ViewPos) ->
     V = lists:nth(ViewPos, Views),
     case V#view.map_names of
     [] ->
-        [{Name, _} | _] = V#view.reduce_funs;
+        [{Name, _} | _] = V#view.reduce_funs,
+        Name;
     [Name | _] ->
-        ok
-    end,
-    Name.
+        Name
+    end.
 
 
 do_writes(Parent, Owner, Group, WriteQueue, InitialBuild, ViewEmptyKVs, Acc) ->
@@ -253,12 +253,13 @@ write_changes(Group, ViewKeyValuesToAdd, DocIdViewIdKeys, NewSeq, InitialBuild) 
     #group{id_btree=IdBtree,fd=Fd} = Group,
 
     AddDocIdViewIdKeys = [{DocId, ViewIdKeys} || {DocId, ViewIdKeys} <- DocIdViewIdKeys, ViewIdKeys /= []],
+    {RemoveDocIds, LookupDocIds} = 
     if InitialBuild ->
-        RemoveDocIds = [],
-        LookupDocIds = [];
+        {[], []};
     true ->
-        RemoveDocIds = [DocId || {DocId, ViewIdKeys} <- DocIdViewIdKeys, ViewIdKeys == []],
-        LookupDocIds = [DocId || {DocId, _ViewIdKeys} <- DocIdViewIdKeys]
+        RemoveDocIds_ = [DocId || {DocId, ViewIdKeys} <- DocIdViewIdKeys, ViewIdKeys == []],
+        LookupDocIds_ = [DocId || {DocId, _ViewIdKeys} <- DocIdViewIdKeys],
+        {RemoveDocIds_, LookupDocIds_}
     end,
     {ok, LookupResults, IdBtree2}
         = couch_btree:query_modify(IdBtree, LookupDocIds, AddDocIdViewIdKeys, RemoveDocIds),

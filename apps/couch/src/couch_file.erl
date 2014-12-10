@@ -436,10 +436,9 @@ handle_call({read_header, Pos}, From, #file{reader = R} = File) ->
     R ! {read_header, Pos, From},
     % update the eof since file must have been updated externally
     R ! {get_eof, self()},
-    receive
-        {eof, Eof, R} -> ok;
+    Eof = receive
+        {eof, Eof_, R} -> Eof_;
         {'EXIT', R, Reason} ->
-            Eof = ok, % appease compiler
             exit({read_loop_died, Reason})
     end,
     {noreply, File#file{eof=Eof}};
@@ -536,14 +535,16 @@ load_header(Fd, Block) ->
     {ok, <<1, HeaderLen:32/integer, RestBlock/binary>>} =
         file:pread(Fd, Block * ?SIZE_BLOCK, ?SIZE_BLOCK),
     TotalBytes = calculate_total_read_len(5, HeaderLen),
+    RawBin = 
     case TotalBytes > byte_size(RestBlock) of
     false ->
-        <<RawBin:TotalBytes/binary, _/binary>> = RestBlock;
+        <<RawBin_:TotalBytes/binary, _/binary>> = RestBlock,
+        RawBin_;
     true ->
         {ok, Missing} = file:pread(
             Fd, (Block * ?SIZE_BLOCK) + 5 + byte_size(RestBlock),
             TotalBytes - byte_size(RestBlock)),
-        RawBin = <<RestBlock/binary, Missing/binary>>
+        <<RestBlock/binary, Missing/binary>>
     end,
     <<Crc32:32, HeaderBin/binary>> =
         iolist_to_binary(remove_block_prefixes(RawBin, 5)),
@@ -768,11 +769,12 @@ write_blocks(Fd, Eof, Data) ->
     Eof + iolist_size(Blocks).
 
 write_header_blocks(Fd, Eof, Header) ->
+    Padding = 
     case Eof rem ?SIZE_BLOCK of
     0 ->
-        Padding = <<>>;
+        <<>>;
     BlockOffset ->
-        Padding = <<0:(8 * (?SIZE_BLOCK - BlockOffset))>>
+        <<0:(8 * (?SIZE_BLOCK - BlockOffset))>>
     end,
     FinalHeader = [
         Padding,

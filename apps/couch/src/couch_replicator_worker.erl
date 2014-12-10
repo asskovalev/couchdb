@@ -222,16 +222,19 @@ queue_fetch_loop(Source, Target, Parent, Cp, ChangesManager) ->
     {changes, ChangesManager, Changes, ReportSeq} ->
         Target2 = open_db(Target),
         {IdRevs, Stats0} = find_missing(Changes, Target2),
+        Stats = 
         case Source of
         #db{} ->
             Source2 = open_db(Source),
-            Stats = local_process_batch(
+            Stats_ = local_process_batch(
                 IdRevs, Cp, Source2, Target2, #batch{}, Stats0),
-            close_db(Source2);
+            close_db(Source2),
+            Stats_;
         #httpdb{} ->
             ok = gen_server:call(Parent, {add_stats, Stats0}, infinity),
             remote_process_batch(IdRevs, Parent),
-            {ok, Stats} = gen_server:call(Parent, flush, infinity)
+            {ok, Stats_} = gen_server:call(Parent, flush, infinity),
+            Stats_
         end,
         close_db(Target2),
         ok = gen_server:call(Cp, {report_seq_done, ReportSeq, Stats}, infinity),

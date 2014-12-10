@@ -334,11 +334,12 @@ process_update(State, {Change}) ->
 
 
 rep_db_update_error(Error, DocId) ->
+    Reason = 
     case Error of
-    {bad_rep_doc, Reason} ->
-        ok;
+    {bad_rep_doc, Reason_} -> 
+        Reason_;
     _ ->
-        Reason = to_binary(Error)
+        to_binary(Error)
     end,
     ?LOG_ERROR("Replication manager, error processing document `~s`: ~s",
         [DocId, Reason]),
@@ -568,11 +569,13 @@ zone(Hr, Min) ->
 ensure_rep_db_exists() ->
     DbName = ?l2b(couch_config:get("replicator", "db", "_replicator")),
     UserCtx = #user_ctx{roles = [<<"_admin">>, <<"_replicator">>]},
+    Db = 
     case couch_db:open_int(DbName, [sys_db, {user_ctx, UserCtx}]) of
-    {ok, Db} ->
-        Db;
+    {ok, Db_} ->
+        Db_;
     _Error ->
-        {ok, Db} = couch_db:create(DbName, [sys_db, {user_ctx, UserCtx}])
+        {ok, Db_} = couch_db:create(DbName, [sys_db, {user_ctx, UserCtx}]),
+        Db_
     end,
     ensure_rep_ddoc_exists(Db, <<"_design/_replicator">>),
     {ok, Db}.

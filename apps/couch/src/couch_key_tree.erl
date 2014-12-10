@@ -69,12 +69,13 @@ merge(Paths, Path, Depth) ->
 -spec merge([path()], path()) -> {[path()], conflicts | no_conflicts}.
 merge(Paths, Path) ->
     {ok, Merged, HasConflicts} = merge_one(Paths, Path, [], false),
+    Conflicts = 
     if HasConflicts ->
-        Conflicts = conflicts;
+        conflicts;
     (length(Merged) =/= length(Paths)) and (length(Merged) =/= 1) ->
-        Conflicts = conflicts;
+        conflicts;
     true ->
-        Conflicts = no_conflicts
+        no_conflicts
     end,
     {lists:sort(Merged), Conflicts}.
 

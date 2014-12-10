@@ -239,13 +239,14 @@ db_req(#httpd{method='POST',
     undefined ->
         send_error(Req, 400, <<"bad_request">>, <<"Missing JSON list of 'docs'">>);
     DocsArray ->
+        Options = 
         case couch_httpd:header_value(Req, "X-Couch-Full-Commit") of
         "true" ->
-            Options = [full_commit];
+            [full_commit];
         "false" ->
-            Options = [delay_commit];
+            [delay_commit];
         _ ->
-            Options = []
+            []
         end,
         case couch_util:get_value(<<"new_edits">>, JsonProps, true) of
         true ->
@@ -546,13 +547,14 @@ update_doc(Req, Db, DocId, Doc) ->
 
 update_doc(Req, Db, DocId, #doc{deleted=Deleted}=Doc, Headers) ->
     DbFrontend = Req#httpd.db_frontend,
+    Options = 
     case couch_httpd:header_value(Req, "X-Couch-Full-Commit") of
     "true" ->
-        Options = [full_commit];
+        [full_commit];
     "false" ->
-        Options = [delay_commit];
+        [delay_commit];
     _ ->
-        Options = []
+        []
     end,
     ok = DbFrontend:update_doc(Db, Doc, Options),
     send_json(Req, if Deleted -> 200; true -> 201 end,

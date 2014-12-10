@@ -164,15 +164,12 @@ expand_stat(Values, StatName) ->
     P90Name = iolist_to_binary([StatName, "_90_percentile"]),
     P95Name = iolist_to_binary([StatName, "_95_percentile"]),
     P99Name = iolist_to_binary([StatName, "_99_percentile"]),
+    {MaxValue, MinValue, AvgValue} = 
     case Values of
     [] ->
-        MaxValue = 0,
-        MinValue = 0,
-        AvgValue = 0;
+        {0, 0, 0};
     _ ->
-        MaxValue = lists:last(Values),
-        MinValue = hd(Values),
-        AvgValue = lists:sum(Values) / length(Values)
+        {lists:last(Values), hd(Values), lists:sum(Values) / length(Values)}
     end,
     [
          {MaxName, MaxValue},
