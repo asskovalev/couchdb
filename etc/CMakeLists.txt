@@ -1,3 +1,0 @@
-ADD_SUBDIRECTORY(couchdb)
-ADD_SUBDIRECTORY(launchd)
-ADD_SUBDIRECTORY(logrotate.d)

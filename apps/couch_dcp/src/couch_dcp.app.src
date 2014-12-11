@@ -18,5 +18,7 @@
         couch_dcp_fake_server
     ]},
     {registered, []},
-    {applications, [kernel, stdlib]}
+    {applications, [kernel, stdlib]},
+    {mod, { couch_dcp_app, []}},
+    {env, []}
 ]}.
